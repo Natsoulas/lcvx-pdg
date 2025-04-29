@@ -66,19 +66,19 @@ The plots will be saved in the `figs` directory and include:
 ## Example Results
 
 ### Detailed 3D Trajectory with Constraints
-![Detailed Trajectory](figs/traj_fancy.pdf)
+![Detailed Trajectory](figs/traj_fancy.png)
 *Detailed visualization showing the spacecraft's trajectory with glide-slope cone and thrust pointing constraints*
 
 ### Ground Track
-![Ground Track](figs/groundtrack.pdf)
+![Ground Track](figs/groundtrack.png)
 *Ground track showing the YZ-plane projection of the trajectory*
 
 ### Time Histories
-![Time Histories](figs/time_histories.pdf)
+![Time Histories](figs/time_histories.png)
 *Time histories of key variables including thrust magnitude, pointing angle, speed, and mass*
 
 ### Basic 3D Trajectory
-![3D Trajectory](figs/trajectory3d.pdf)
+![3D Trajectory](figs/trajectory3d.png)
 *Basic 3D trajectory visualization colored by thrust magnitude*
 
 ## License

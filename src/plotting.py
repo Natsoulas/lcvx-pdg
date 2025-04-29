@@ -37,7 +37,7 @@ def plot_trajectory3d(r, u):
     
     plt.tight_layout()
     Path('figs').mkdir(exist_ok=True)
-    fig.savefig('figs/trajectory3d.pdf')
+    fig.savefig('figs/trajectory3d.png', dpi=300, bbox_inches='tight')
     plt.close()
 
 def plot_time_histories(t, u, sigma, v, z, params: SystemParameters):
@@ -86,7 +86,7 @@ def plot_time_histories(t, u, sigma, v, z, params: SystemParameters):
     
     plt.tight_layout()
     Path('figs').mkdir(exist_ok=True)
-    fig.savefig('figs/time_histories.pdf')
+    fig.savefig('figs/time_histories.png', dpi=300, bbox_inches='tight')
     plt.close()
 
 def plot_groundtrack(r, params: SystemParameters):
@@ -112,13 +112,13 @@ def plot_groundtrack(r, params: SystemParameters):
            title='Ground-track (YZ-plane)')
     ax.legend()
     plt.tight_layout()
-    fig.savefig('figs/groundtrack.pdf')
+    fig.savefig('figs/groundtrack.png', dpi=300, bbox_inches='tight')
     plt.close()
 
 def fancy_trajectory_plot(r, v, params: SystemParameters,
                          tick_dt=2.0,  # seconds between attitude arrows
                          cone_length=500,  # m
-                         out='figs/traj_fancy.pdf'):
+                         out='figs/traj_fancy.png'):
     """
     r : (3,N) position [m]; v : (3,N) velocity [m/s]
     gamma_tan : tan(gamma_gs) glide-slope
@@ -309,7 +309,7 @@ def fancy_trajectory_plot(r, v, params: SystemParameters,
 
     plt.tight_layout()
     Path('figs').mkdir(exist_ok=True)
-    fig.savefig(out, dpi=600, bbox_inches='tight')
+    fig.savefig(out, dpi=300, bbox_inches='tight')
     plt.close()
     print(f"saved {out}")
 
