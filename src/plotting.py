@@ -1,5 +1,7 @@
 """
 Plotting functions for the powered descent guidance problem.
+
+Author: Niko Natsoulas
 """
 
 from pathlib import Path

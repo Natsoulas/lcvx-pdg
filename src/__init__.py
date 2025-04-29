@@ -1,5 +1,7 @@
 """
-Source package for the powered descent guidance problem.
+Powered descent guidance package initialization.
+
+Author: Niko Natsoulas
 """
 
 from .system_parameters import SystemParameters

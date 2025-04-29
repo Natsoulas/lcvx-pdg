@@ -2,6 +2,8 @@
 Main script for the powered descent guidance problem.
 Sets up the problem parameters and solves both minimum landing error
 and minimum fuel problems.
+
+Author: Niko Natsoulas
 """
 
 import numpy as np

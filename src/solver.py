@@ -1,5 +1,7 @@
 """
 Solver for the powered descent guidance optimization problem.
+
+Author: Niko Natsoulas
 """
 
 from typing import Tuple
@@ -43,12 +45,21 @@ class PoweredDescentGuidance:
             constraints.append(
                 z[:,t+1] == z[:,t] - p.alpha * gamma[:,t]
             )
+            
+            # Add thrust rate constraint
+            if t < p.N-2:
+                constraints.append(
+                    cp.norm(u[:,t+1] - u[:,t], axis=0) <= p.max_thrust_change_rate  # Max thrust change rate
+                )
         
         # Thrust constraints
         constraints.extend([
             cp.norm(u, axis=0) <= gamma[0,:],  # Upper bound
             p.e1 @ u >= gamma[0,:] * p.theta_cos  # Pointing constraint
         ])
+        
+        # Initial thrust should be small to ensure smooth start
+        constraints.append(cp.norm(u[:,0]) <= p.initial_thrust_fraction * p.Tmax)
         
         # Slack variable bounds
         z0 = np.array([np.log(p.m0 - p.alpha * p.rho2 * p.dt * i) 
@@ -75,11 +86,12 @@ class PoweredDescentGuidance:
         u = cp.Variable((3, p.N))     # Thrust
         gamma = cp.Variable((1, p.N)) # Slack variable
         
-        # Objective: minimize landing error and final velocity
+        # Objective: minimize landing error, final velocity, and thrust variation
         objective = cp.Minimize(
-            5.0 * cp.norm(p.E @ x[:3,p.N-1] - p.q) +
-            0.1 * cp.sum(gamma) +
-            1.0 * cp.norm(x[3:,p.N-1])
+            5.0 * cp.norm(p.E @ x[:3,p.N-1] - p.q) +  # Landing error
+            0.5 * cp.sum(gamma) +                      # Fuel usage (reduced weight)
+            1.0 * cp.norm(x[3:,p.N-1]) +              # Final velocity
+            0.1 * cp.sum_squares(cp.diff(gamma[0,:]))  # Thrust smoothness
         )
         
         # Constraints
@@ -113,8 +125,11 @@ class PoweredDescentGuidance:
         u = cp.Variable((3, p.N))     # Thrust
         gamma = cp.Variable((1, p.N)) # Slack variable
         
-        # Objective: minimize fuel consumption
-        objective = cp.Minimize(cp.sum(gamma) * p.dt)
+        # Objective: minimize fuel consumption and thrust variation
+        objective = cp.Minimize(
+            cp.sum(gamma) * p.dt +                    # Fuel consumption
+            0.05 * cp.sum_squares(cp.diff(gamma[0,:])) # Thrust smoothness
+        )
         
         # Constraints
         constraints = self._set_common_constraints(x, z, u, gamma)

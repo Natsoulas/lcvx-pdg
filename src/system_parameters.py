@@ -1,5 +1,7 @@
 """
 System parameters for the powered descent guidance problem.
+
+Author: Niko Natsoulas
 """
 
 from dataclasses import dataclass, field
@@ -23,6 +25,8 @@ class SystemParameters:
     Tmax: float = 24000.0  # Maximum thrust [N]
     rho1: float = 0.2 * 24000.0  # Lower bound thrust [N]
     rho2: float = 0.8 * 24000.0  # Upper bound thrust [N]
+    max_thrust_change_rate: float = 2.0  # Maximum rate of thrust change [N/s]
+    initial_thrust_fraction: float = 0.2  # Initial thrust as fraction of max thrust
     
     # Simulation parameters
     tf: float = 50.0  # End time [s]
