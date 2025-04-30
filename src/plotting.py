@@ -12,7 +12,11 @@ from mpl_toolkits.mplot3d import Axes3D
 from .system_parameters import SystemParameters
 
 def plot_trajectory3d(r, u):
-    """3-D path coloured by thrust magnitude."""
+    """3-D path coloured by thrust magnitude.
+    
+    Returns:
+        matplotlib.figure.Figure: The generated figure
+    """
     thr = np.linalg.norm(u.T, axis=1)
     norm = colors.Normalize(vmin=thr.min(), vmax=thr.max())
     cmap = plt.get_cmap('viridis')
@@ -38,12 +42,14 @@ def plot_trajectory3d(r, u):
     ax.view_init(elev=20, azim=45)
     
     plt.tight_layout()
-    Path('figs').mkdir(exist_ok=True)
-    fig.savefig('figs/trajectory3d.png', dpi=300, bbox_inches='tight')
-    plt.close()
+    return fig
 
 def plot_time_histories(t, u, sigma, v, z, params: SystemParameters):
-    """4-panel summary plot."""
+    """4-panel summary plot.
+    
+    Returns:
+        matplotlib.figure.Figure: The generated figure
+    """
     thrust = np.linalg.norm(u, axis=0)
     pointing = np.arccos(u[0]/thrust) * 180/np.pi   # angle wrt vertical
 
@@ -87,12 +93,14 @@ def plot_time_histories(t, u, sigma, v, z, params: SystemParameters):
         ax.grid(True, linestyle='--', alpha=0.3)
     
     plt.tight_layout()
-    Path('figs').mkdir(exist_ok=True)
-    fig.savefig('figs/time_histories.png', dpi=300, bbox_inches='tight')
-    plt.close()
+    return fig
 
 def plot_groundtrack(r, params: SystemParameters):
-    """XZ ground-track with glide-slope cone."""
+    """XZ ground-track with glide-slope cone.
+    
+    Returns:
+        matplotlib.figure.Figure: The generated figure
+    """
     x, y, z = r
     fig, ax = plt.subplots(figsize=(5.2,3.5))
     ax.plot(y, z, lw=2)
@@ -114,8 +122,7 @@ def plot_groundtrack(r, params: SystemParameters):
            title='Ground-track (YZ-plane)')
     ax.legend()
     plt.tight_layout()
-    fig.savefig('figs/groundtrack.png', dpi=300, bbox_inches='tight')
-    plt.close()
+    return fig
 
 def fancy_trajectory_plot(r, v, params: SystemParameters,
                          tick_dt=2.0,  # seconds between attitude arrows
@@ -314,15 +321,28 @@ def fancy_trajectory_plot(r, v, params: SystemParameters,
     fig.savefig(out, dpi=300, bbox_inches='tight')
     plt.close()
     print(f"saved {out}")
+    return fig
 
 def make_all_plots(x, u, sigma, z, params: SystemParameters):
-    """Generate all plots for the solution."""
+    """Generate all plots for the solution.
+    
+    Returns:
+        dict: Dictionary of figure names and their matplotlib Figure objects
+    """
     r = x[:3,:]          # positions
     v = x[3:,:]          # velocities
     t = np.arange(params.N)*params.dt
     Path('figs').mkdir(exist_ok=True)
 
-    plot_trajectory3d(r, u)
-    plot_time_histories(t, u, sigma, v, z, params)
-    plot_groundtrack(r, params)
-    fancy_trajectory_plot(r, v, params) 
+    # Create all figures
+    fig_3d = plot_trajectory3d(r, u)
+    fig_time = plot_time_histories(t, u, sigma, v, z, params)
+    fig_ground = plot_groundtrack(r, params)
+    fig_fancy = fancy_trajectory_plot(r, v, params)
+    
+    return {
+        'trajectory3d': fig_3d,
+        'time_histories': fig_time,
+        'groundtrack': fig_ground,
+        'fancy': fig_fancy
+    } 

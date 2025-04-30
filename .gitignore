@@ -65,6 +65,9 @@ db.sqlite3-journal
 instance/
 .webassets-cache
 
+# Monte Carlo
+results_*
+
 # MacOS
 .DS_Store
 
