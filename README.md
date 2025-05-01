@@ -2,7 +2,7 @@
 
 ![Powered Descent Animation](figs/min_error_trajectory.gif)
 
-*Low-fidelity animation of the powered-descent trajectory produced by the minimum-error guidance solution.  The plume length/colour vary with instantaneous thrust, and the vehicle model is fully 3-D.*
+*Low-fidelity animation of the powered-descent trajectory produced by the minimum-error guidance solution.  The plume length/color vary with instantaneous thrust, and the vehicle model is fully 3-D.*
 
 This repository implements the Lossless Convexification approach for the Soft Landing Optimal Control Problem as described in the paper:
 
@@ -28,7 +28,7 @@ The solution uses lossless convexification to handle nonconvex control constrain
 
 1. Clone this repository:
 ```bash
-git clone https://github.com/yourusername/lcvx-pdg.git
+git clone https://github.com/Natsoulas/lcvx-pdg.git
 cd lcvx-pdg
 ```
 
