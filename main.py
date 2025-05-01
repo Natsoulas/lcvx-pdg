@@ -14,10 +14,10 @@ import time
 import matplotlib.pyplot as plt
 from src.system_parameters import SystemParameters
 from src.solver import PoweredDescentGuidance
-from src.plotting import make_all_plots
+from src.plotting import make_all_plots, save_animation_frames, create_gif
 from src.monte_carlo import MonteCarloPDG
 
-def run_monte_carlo_analysis(params: SystemParameters, save_dir: Path, n_sims: int = 1000):
+def run_monte_carlo_analysis(params: SystemParameters, save_dir: Path, n_sims: int = 100):
     """Run Monte Carlo analysis and save results."""
     print("\n=== Running Monte Carlo Analysis ===")
     
@@ -37,16 +37,6 @@ def run_monte_carlo_analysis(params: SystemParameters, save_dir: Path, n_sims: i
     print(f"Average Final Velocity: {np.mean(results.final_velocities):.2f} ± {np.std(results.final_velocities):.2f} m/s")
     print(f"Average Fuel Consumption: {np.mean(results.fuel_consumption):.2f} ± {np.std(results.fuel_consumption):.2f} kg")
     print(f"Total Simulation Time: {end_time - start_time:.1f} seconds")
-    
-    # Save numerical results
-    np.savez(
-        save_dir / 'monte_carlo_results.npz',
-        landing_errors=results.landing_errors,
-        final_velocities=results.final_velocities,
-        fuel_consumption=results.fuel_consumption,
-        success_rate=results.success_rate,
-        parameter_variations=results.parameter_variations
-    )
     
     # Plot results
     mc_sim.plot_results(results, str(save_dir))
@@ -92,6 +82,11 @@ def main():
         for name, fig in figs.items():
             fig.savefig(save_dir / f'min_error_{name}.png', dpi=300, bbox_inches='tight')
             plt.close(fig)
+            
+        # Create animation
+        print("\nGenerating minimum error trajectory animation...")
+        save_animation_frames(x.value, u.value, params, save_dir / 'min_error_animation')
+        create_gif(save_dir / 'min_error_animation', save_dir / 'min_error_trajectory.gif')
     else:
         print(f"Minimum landing error problem failed with status: {status}")
         return
@@ -114,12 +109,17 @@ def main():
         for name, fig in figs.items():
             fig.savefig(save_dir / f'min_fuel_{name}.png', dpi=300, bbox_inches='tight')
             plt.close(fig)
+            
+        # Create animation
+        print("\nGenerating minimum fuel trajectory animation...")
+        save_animation_frames(x.value, u.value, params, save_dir / 'min_fuel_animation')
+        create_gif(save_dir / 'min_fuel_animation', save_dir / 'min_fuel_trajectory.gif')
     else:
         print(f"Minimum fuel problem failed with status: {status}")
         return
 
     # Run Monte Carlo analysis
-    run_monte_carlo_analysis(params, save_dir, n_sims=1000)
+    run_monte_carlo_analysis(params, save_dir, n_sims=500)
     
     print(f"\nAll results saved to: {save_dir}")
 

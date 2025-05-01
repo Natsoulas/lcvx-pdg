@@ -10,6 +10,8 @@ import matplotlib.pyplot as plt
 from matplotlib import cm, colors
 from mpl_toolkits.mplot3d import Axes3D
 from .system_parameters import SystemParameters
+from matplotlib.collections import LineCollection
+from PIL import Image
 
 def plot_trajectory3d(r, u):
     """3-D path coloured by thrust magnitude.
@@ -21,10 +23,10 @@ def plot_trajectory3d(r, u):
     norm = colors.Normalize(vmin=thr.min(), vmax=thr.max())
     cmap = plt.get_cmap('viridis')
 
-    fig = plt.figure(figsize=(5,4))
+    fig = plt.figure(figsize=(10,8))
     ax = fig.add_subplot(111, projection='3d')
     
-    # Reorient so altitude (x[0]) is the Z axis
+    # Plot with altitude on z-axis for better visualization
     x, y, z = r[1], r[2], r[0]  # Rearrange coordinates
     
     for k in range(len(x)-1):
@@ -33,15 +35,25 @@ def plot_trajectory3d(r, u):
                 [z[k], z[k+1]], 
                 color=cmap(norm(thr[k])), linewidth=2)
                 
-    ax.set(xlabel='Y [m]', ylabel='Z [m]', zlabel='Altitude [m]')
+    ax.set(xlabel='Cross-range [m]', ylabel='Down-range [m]', zlabel='Altitude [m]')
     ax.set_title('Powered-descent trajectory')
-    fig.colorbar(cm.ScalarMappable(norm,cmap), ax=ax,
-                 label='|Thrust| [m/s$^{2}$]')
     
-    # Set a better viewing angle
-    ax.view_init(elev=20, azim=45)
+    # Add colorbar with proper mappable
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])
+    fig.colorbar(sm, ax=ax, label='Thrust [N]')
     
-    plt.tight_layout()
+    # Add projections onto walls
+    ax.plot(x, y, np.zeros_like(z), 'k--', alpha=0.2)  # Ground projection
+    ax.plot(x, np.full_like(y, y.max()), z, 'k--', alpha=0.2)  # Back wall
+    ax.plot(np.full_like(x, x.min()), y, z, 'k--', alpha=0.2)  # Side wall
+    
+    # Add initial and final points
+    ax.scatter([x[0]], [y[0]], [z[0]], color='g', s=100, label='Start')
+    ax.scatter([x[-1]], [y[-1]], [z[-1]], color='r', s=100, label='End')
+    
+    ax.legend()
+    
     return fig
 
 def plot_time_histories(t, u, sigma, v, z, params: SystemParameters):
@@ -345,4 +357,287 @@ def make_all_plots(x, u, sigma, z, params: SystemParameters):
         'time_histories': fig_time,
         'groundtrack': fig_ground,
         'fancy': fig_fancy
-    } 
+    }
+
+def draw_rocket(ax, pos_plot, thrust_plot, umax, scale=250):
+    """Draw a rocket with proper orientation and thrust visualization.
+    
+    Args:
+        ax: 3D axis to draw on
+        pos_plot: [x,y,z] position in plotting coordinates
+        thrust_plot: [ux,uy,uz] thrust vector at current position in plotting coordinates
+        umax: Maximum acceleration magnitude for scaling
+        scale: Size scaling factor
+    """
+    # Get thrust direction for rocket orientation
+    thrust_dir = thrust_plot / (np.linalg.norm(thrust_plot) + 1e-6)  # Normalized thrust vector
+    
+    # Create rotation matrix to align rocket with thrust direction
+    # First vector is UP (rocket points up, thrust points down)
+    v1 = -thrust_dir  # Thrust direction (down)
+    v2 = np.array([0, 1, 0])  # Initial guess for side direction
+    v2 = v2 - np.dot(v2, v1) * v1  # Make perpendicular to v1
+    v2 = v2 / (np.linalg.norm(v2) + 1e-6)  # Normalize
+    v3 = np.cross(v1, v2)  # Third orthogonal vector
+    R = np.vstack([-v1, v2, v3]).T  # Note: -v1 to make rocket point UP
+    
+    # Rocket dimensions (taller & slightly wider overall)
+    h = scale * 2.0          # Body height doubled for tall Falcon-9 look
+    r = scale / 12.0         # Slightly wider body radius
+    nose_h = 0.5 * scale     # Taller nose cone for Starship look
+    n = 20  # number of points for circles
+    
+    # Create rocket body points (cylinder)
+    theta = np.linspace(0, 2*np.pi, n)
+    circle = np.vstack([np.cos(theta), np.sin(theta), np.zeros_like(theta)])
+    
+    # ------------------------------------------------ body ------------------------------------------------
+    # Bottom circle (engine end) – this is pos_plot
+    bottom = pos_plot.reshape(-1,1) + R @ (r * circle)
+    ax.plot(bottom[0], bottom[1], bottom[2], 'k-', alpha=0.6)
+    
+    # Top circle
+    top = pos_plot.reshape(-1,1) + R @ (r * circle + np.array([[h], [0], [0]]))
+    ax.plot(top[0], top[1], top[2], 'k-', alpha=0.6)
+    
+    # Generate cylinder surface (body)
+    n_theta = 48  # higher circumferential resolution
+    n_h = 12      # more slices along height
+    theta_c = np.linspace(0, 2*np.pi, n_theta)
+    z_c = np.linspace(0, h, n_h)
+    Theta_c, Z_c = np.meshgrid(theta_c, z_c)
+    # Local coords
+    Xl_c = Z_c                      # along body axis
+    Yl_c = r * np.cos(Theta_c)
+    Zl_c = r * np.sin(Theta_c)
+    # Transform to world
+    Xw_c = pos_plot[0] + R[0,0]*Xl_c + R[0,1]*Yl_c + R[0,2]*Zl_c
+    Yw_c = pos_plot[1] + R[1,0]*Xl_c + R[1,1]*Yl_c + R[1,2]*Zl_c
+    Zw_c = pos_plot[2] + R[2,0]*Xl_c + R[2,1]*Yl_c + R[2,2]*Zl_c
+    ax.plot_surface(Xw_c, Yw_c, Zw_c, color='dimgray', shade=True, linewidth=0, antialiased=False, alpha=0.9)
+
+    # Optional: thin black outline for body centre line
+    ax.plot([pos_plot[0], pos_plot[0] + R[0,0]*h],
+            [pos_plot[1], pos_plot[1] + R[1,0]*h],
+            [pos_plot[2], pos_plot[2] + R[2,0]*h],
+            color='k', linewidth=1, alpha=0.6)
+
+    # Generate nose cone surface
+    n_h_cone = 12  # more slices for smoother cone
+    z_cone = np.linspace(0, nose_h, n_h_cone)
+    Theta_k, Z_k = np.meshgrid(theta_c, z_cone)
+    # Ogive/pointier cone: radius decreases with power 1.5 for slender shape
+    R_k = r * (1 - (Z_k / nose_h))**1.5
+    Xl_k = h + Z_k                 # offset after body
+    Yl_k = R_k * np.cos(Theta_k)
+    Zl_k = R_k * np.sin(Theta_k)
+    Xw_k = pos_plot[0] + R[0,0]*Xl_k + R[0,1]*Yl_k + R[0,2]*Zl_k
+    Yw_k = pos_plot[1] + R[1,0]*Xl_k + R[1,1]*Yl_k + R[1,2]*Zl_k
+    Zw_k = pos_plot[2] + R[2,0]*Xl_k + R[2,1]*Yl_k + R[2,2]*Zl_k
+    ax.plot_surface(Xw_k, Yw_k, Zw_k, color='silver', shade=True, linewidth=0, antialiased=False, alpha=0.95)
+
+    # Outline ring at cylinder-cone join for better visibility
+    ax.plot(top[0], top[1], top[2], color='k', linewidth=0.8, alpha=0.6)
+
+    # Spine line up the centre of the cone
+    cone_tip = pos_plot + R @ np.array([h + nose_h, 0, 0])
+    ax.plot([top[0,0], cone_tip[0]],
+            [top[1,0], cone_tip[1]],
+            [top[2,0], cone_tip[2]],
+            color='k', linewidth=0.8, alpha=0.6)
+
+    # ------------------------------------------------ landing legs --------------------------------------
+    leg_angles = [0, 120, 240]  # Three legs spaced evenly around
+    leg_length = h * 0.3        # Legs shorter relative to taller body
+    leg_angle = 30              # Bring legs closer to body (smaller splay)
+    
+    for theta in leg_angles:
+        # Rotate leg direction around rocket axis
+        c, s = np.cos(np.deg2rad(theta)), np.sin(np.deg2rad(theta))
+        leg_dir = R @ np.array([
+            -np.cos(np.deg2rad(leg_angle)),  # Points down from rocket body
+            np.sin(np.deg2rad(leg_angle)) * c,
+            np.sin(np.deg2rad(leg_angle)) * s
+        ])
+        leg_end = pos_plot + leg_length * leg_dir
+        ax.plot([pos_plot[0], leg_end[0]],
+                [pos_plot[1], leg_end[1]],
+                [pos_plot[2], leg_end[2]], 'k-', linewidth=1.5, alpha=0.7)
+        
+        # Add foot pad
+        foot_width = leg_length/4
+        foot_dir = np.cross(leg_dir, R[:,1])  # Perpendicular to leg
+        foot_start = leg_end - foot_width/2 * foot_dir
+        foot_end = leg_end + foot_width/2 * foot_dir
+        ax.plot([foot_start[0], foot_end[0]],
+                [foot_start[1], foot_end[1]],
+                [foot_start[2], foot_end[2]], 'k-', linewidth=1.5, alpha=0.7)
+    
+    # ---------------------------------------------- thrust plume ----------------------------------------
+    thrust_mag = np.linalg.norm(thrust_plot)
+    thrust_scale = thrust_mag / (umax + 1e-9)
+    
+    # Quadratic scaling for smoother change and visibility across range
+    plume_length = scale * (1.0 + 4.0 * thrust_scale**1.2)  # 1×scale idle → 5×scale full thrust
+    plume_radius = r * (0.15 + 0.85 * thrust_scale)  # 0.15r idle → r at max
+    if thrust_scale < 0.01:  # <1% of umax: suppress plume
+        plume_length = 0.0  # Practically no plume
+        plume_radius = 0.0
+    
+    # Use warm colormap (red-orange) along length
+    cmap_flame = cm.get_cmap('autumn_r')
+    n_segments = 12  # smoother gradient
+    for j in range(n_segments):
+        t0 = j / n_segments
+        t1 = (j + 1) / n_segments
+        seg_start = pos_plot + t0 * plume_length * (-thrust_dir)
+        seg_end   = pos_plot + t1 * plume_length * (-thrust_dir)
+        color_seg = cmap_flame(t0*0.8 + 0.2)  # more red near engine, yellow at end
+        ax.plot([seg_start[0], seg_end[0]],
+                [seg_start[1], seg_end[1]],
+                [seg_start[2], seg_end[2]],
+                color=color_seg, linewidth=4, alpha=0.85)
+        # Add slight width by drawing circular offsets
+        if plume_radius > 0:
+            for theta_p in np.linspace(0, 2*np.pi, 6, endpoint=False):
+                offset = plume_radius * np.array([0,
+                    np.cos(theta_p),
+                    np.sin(theta_p)])
+                seg_start_o = seg_start + R @ offset
+                seg_end_o   = seg_end   + R @ offset
+                ax.plot([seg_start_o[0], seg_end_o[0]],
+                        [seg_start_o[1], seg_end_o[1]],
+                        [seg_start_o[2], seg_end_o[2]],
+                        color=color_seg, linewidth=2, alpha=0.55)
+
+def save_animation_frames(x, u, params, output_dir='animation', frames_per_sec: int = 5):
+    """Save trajectory animation frames with temporal oversampling.
+    
+    Args:
+        x (np.ndarray): State trajectory array (6×N)
+        u (np.ndarray): Control trajectory array (3×N)
+        params (SystemParameters): System parameters (contains dt)
+        output_dir (str | Path): Directory where frame PNGs will be written
+        frames_per_sec (int): Desired number of frames per simulation second
+    """
+    # Create output directory
+    Path(output_dir).mkdir(exist_ok=True)
+    
+    r = x[:3,:]  # positions
+    v = x[3:,:]  # velocities
+    
+    # Precompute max thrust magnitude for scaling
+    umax = np.linalg.norm(u, axis=0).max()
+    if umax == 0:
+        umax = 1.0
+    # Get velocity range for consistent coloring
+    vel_full = np.linalg.norm(v.T, axis=1)
+    vel_norm = plt.Normalize(vel_full.min(), vel_full.max())
+    cmap = plt.get_cmap('viridis')
+    
+    # Oversampling factor (frames between discrete simulation samples)
+    k_sub = max(1, int(frames_per_sec * params.dt))
+
+    frame_idx = 0
+    # Iterate through each simulation step and create k_sub sub-frames via linear interpolation
+    for i in range(len(r[0]) - 1):
+        for sub in range(k_sub):
+            frac = sub / k_sub
+            # Linear interpolation of state & control
+            pos_int = (1 - frac) * r[:, i] + frac * r[:, i + 1]
+            thr_int = (1 - frac) * u[:, i] + frac * u[:, i + 1]
+
+            # Alias for readability below
+            xi, yi, zi = pos_int[1], pos_int[2], pos_int[0]
+
+            fig = plt.figure(figsize=(12, 8))
+            ax  = fig.add_subplot(111, projection='3d')
+
+            # Plot trajectory up to this fractional time
+            # positions already computed per integer index; for simplicity use original coarse history
+            x_hist = r[1, :i+1]
+            y_hist = r[2, :i+1]
+            z_hist = r[0, :i+1]
+            vel_hist = np.linalg.norm(v.T[:i+1], axis=1)
+
+            for k in range(len(x_hist) - 1):
+                ax.plot([x_hist[k], x_hist[k + 1]],
+                        [y_hist[k], y_hist[k + 1]],
+                        [z_hist[k], z_hist[k + 1]],
+                        color=cmap(vel_norm(vel_hist[k])), linewidth=2)
+
+            # Current rocket
+            current_pos_plot = np.array([xi, yi, zi])
+            current_thrust_plot = np.array([thr_int[1], thr_int[2], thr_int[0]])
+            draw_rocket(ax, current_pos_plot, current_thrust_plot, umax)
+
+            # ------------------------ ground plane & cones (unchanged) ------------------------
+            # [We reuse the previous code unchanged …]
+            # copied from earlier section but needs variables
+            max_range = max(abs(r[1:].max()), abs(r[1:].min())) * 1.2
+            xx, yy = np.meshgrid(np.linspace(-max_range, max_range, 10),
+                                np.linspace(-max_range, max_range, 10))
+            ax.plot_surface(xx, yy, np.zeros_like(xx), alpha=0.1, color='gray')
+
+            h0 = r[0, 0]
+            theta_gs = np.deg2rad(params.glidelslope_angle)
+            r_cone   = h0 / np.tan(theta_gs)
+            phi = np.linspace(0, 2 * np.pi, 60)
+            H  = np.linspace(0, h0, 30)
+            PHI, HH = np.meshgrid(phi, H)
+            RRR = HH / np.tan(theta_gs)
+            X_cone = RRR * np.cos(PHI)
+            Y_cone = RRR * np.sin(PHI)
+            Z_cone = HH
+            ax.plot_surface(X_cone, Y_cone, Z_cone, alpha=0.1, color='orange')
+
+            # Ax aesthetics
+            ax.set(xlabel='Cross-range [m]', ylabel='Down-range [m]', zlabel='Altitude [m]',
+                   title=f'Powered Descent Trajectory (t = {(i + frac)*params.dt:.1f}s)')
+            ax.set_xlim([-max_range, max_range])
+            ax.set_ylim([-max_range, max_range])
+            ax.set_zlim([0, r[0].max() * 1.2])
+            sm = plt.cm.ScalarMappable(cmap='viridis', norm=vel_norm)
+            sm.set_array([])
+            plt.colorbar(sm, ax=ax, label='Velocity [m/s]')
+            ax.view_init(elev=20, azim=45)
+
+            # Save frame
+            plt.savefig(Path(output_dir) / f'frame_{frame_idx:04d}.png', dpi=100, bbox_inches='tight')
+            plt.close()
+            frame_idx += 1
+
+    # Add final exact last state frame
+    current_pos_plot = np.array([r[1, -1], r[2, -1], r[0, -1]])
+    current_thrust_plot = np.array([u[1, -1], u[2, -1], u[0, -1]])
+    fig = plt.figure(figsize=(12, 8))
+    ax = fig.add_subplot(111, projection='3d')
+    # (optional: skip full plotting for brevity, but for consistency reuse previous small loop)
+    ax.plot(r[1], r[2], r[0], color='k', alpha=0.2)
+    draw_rocket(ax, current_pos_plot, current_thrust_plot, umax)
+    ax.set_xlabel('Cross-range [m]'); ax.set_ylabel('Down-range [m]'); ax.set_zlabel('Altitude [m]')
+    ax.set_xlim([-max_range, max_range]); ax.set_ylim([-max_range, max_range]); ax.set_zlim([0, r[0].max()*1.2])
+    plt.savefig(Path(output_dir) / f'frame_{frame_idx:04d}.png', dpi=100, bbox_inches='tight')
+    plt.close()
+
+def create_gif(frame_dir='animation', output_file='trajectory.gif', duration=50):
+    """Create GIF from animation frames.
+    
+    Args:
+        frame_dir: Directory containing frames
+        output_file: Output GIF filename
+        duration: Duration for each frame in milliseconds
+    """
+    frames = []
+    frame_files = sorted(Path(frame_dir).glob('frame_*.png'))
+    
+    for frame_file in frame_files:
+        frames.append(Image.open(frame_file))
+        
+    frames[0].save(
+        output_file,
+        save_all=True,
+        append_images=frames[1:],
+        duration=duration,
+        loop=0
+    ) 

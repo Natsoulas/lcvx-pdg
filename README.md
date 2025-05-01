@@ -1,5 +1,9 @@
 # Lossless Convexification Powered Descent Guidance (LCVX-PDG)
 
+![Powered Descent Animation](figs/min_error_trajectory.gif)
+
+*Low-fidelity animation of the powered-descent trajectory produced by the minimum-error guidance solution.  The plume length/colour vary with instantaneous thrust, and the vehicle model is fully 3-D.*
+
 This repository implements the Lossless Convexification approach for the Soft Landing Optimal Control Problem as described in the paper:
 
 > Behçet Açıkmeşe, John M. Carson III, and Lars Blackmore, "Lossless Convexification of Nonconvex Control Bound and Pointing Constraints of the Soft Landing Optimal Control Problem," IEEE Transactions on Control Systems Technology, vol. 21, no. 6, pp. 2104-2113, Nov. 2013.
@@ -80,6 +84,10 @@ The plots will be saved in the `figs` directory and include:
 ### Basic 3D Trajectory
 ![3D Trajectory](figs/trajectory3d.png)
 *Basic 3D trajectory visualization colored by thrust magnitude*
+
+### Monte-Carlo Robustness Analysis
+![Monte-Carlo Distributions](figs/monte_carlo_distributions.png)
+*Distributions of landing error, final velocity, and fuel consumption obtained from 500 randomly-dispersed simulations.  These results highlight the guidance algorithm's robustness to initial-state and parameter uncertainty.*
 
 ## License
 
