@@ -36,6 +36,7 @@ class SystemParameters:
     glidelslope_angle: float = 30.0  # Minimum glide-slope angle [deg]
     theta_deg: float = 120.0  # Thrust angle [deg]
     velocity_max: float = 90.0  # Maximum velocity [m/s]
+    final_velocity_max: float = 2.0  # Maximum allowable final landing speed [m/s]
     
     # Planet parameters (Mars)
     omega: np.ndarray = field(default_factory=lambda: np.array([2.53e-5, 0, 6.62e-5]))  # Angular velocity [rad/s]

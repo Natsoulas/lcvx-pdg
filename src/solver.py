@@ -76,7 +76,7 @@ class PoweredDescentGuidance:
         
         return constraints
 
-    def solve_minimum_error(self) -> Tuple[str, cp.Variable, cp.Variable]:
+    def solve_minimum_error(self) -> Tuple[str, cp.Variable, cp.Variable, cp.Variable, cp.Variable]:
         """Solve the relaxed minimum-landing-error guidance problem."""
         p = self.params
         
@@ -97,7 +97,7 @@ class PoweredDescentGuidance:
         # Constraints
         constraints = self._set_common_constraints(x, z, u, gamma)
         constraints.extend([
-            cp.norm(x[3:,p.N-1]) <= 2.0,  # Final velocity ≤ 2 m/s
+            cp.norm(x[3:,p.N-1]) <= p.final_velocity_max,  # Final velocity limit
             cp.norm(p.E @ x[:3,p.N-1] - p.q) <= 10.0  # Landing accuracy
         ])
         
@@ -111,7 +111,7 @@ class PoweredDescentGuidance:
         problem = cp.Problem(objective, constraints)
         problem.solve(solver=cp.ECOS, verbose=True)
         
-        return problem.status, x, u
+        return problem.status, x, u, gamma, z
 
     def solve_minimum_fuel(self, dP3: float) -> Tuple[str, cp.Variable, 
                                                      cp.Variable, cp.Variable, 
@@ -125,15 +125,19 @@ class PoweredDescentGuidance:
         u = cp.Variable((3, p.N))     # Thrust
         gamma = cp.Variable((1, p.N)) # Slack variable
         
-        # Objective: minimize fuel consumption and thrust variation
+        # Objective: minimize fuel consumption while penalizing final velocity
         objective = cp.Minimize(
-            cp.sum(gamma) * p.dt +                    # Fuel consumption
-            0.05 * cp.sum_squares(cp.diff(gamma[0,:])) # Thrust smoothness
+            cp.sum(gamma) * p.dt +                     # Fuel consumption
+            0.05 * cp.sum_squares(cp.diff(gamma[0,:])) + # Thrust smoothness
+            1.0 * cp.norm(x[3:,p.N-1])                  # Penalize final speed
         )
         
         # Constraints
         constraints = self._set_common_constraints(x, z, u, gamma)
-        constraints.append(cp.norm(p.E @ x[:3,p.N-1] - p.q) <= dP3)
+        constraints.extend([
+            cp.norm(p.E @ x[:3,p.N-1] - p.q) <= dP3,
+            cp.norm(x[3:,p.N-1]) <= p.final_velocity_max  # Limit final speed
+        ])
         
         # Solve
         problem = cp.Problem(objective, constraints)

@@ -71,13 +71,13 @@ def main():
     
     # Solve minimum landing error problem
     print("\nSolving minimum landing error problem...")
-    status, x, u = solver.solve_minimum_error()
+    status, x, u, gamma_min_err, z_min_err = solver.solve_minimum_error()
     
     if status == cp.OPTIMAL or status == "optimal_inaccurate":
         print("Minimum landing error problem solved successfully!")
         print(f"Status: {status}")
         # Generate plots
-        figs = make_all_plots(x.value, u.value, None, None, params)
+        figs = make_all_plots(x.value, u.value, gamma_min_err.value, z_min_err.value, params)
         # Save each figure
         for name, fig in figs.items():
             fig.savefig(save_dir / f'min_error_{name}.png', dpi=300, bbox_inches='tight')
