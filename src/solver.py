@@ -109,7 +109,7 @@ class PoweredDescentGuidance:
         
         # Solve
         problem = cp.Problem(objective, constraints)
-        problem.solve(solver=cp.ECOS, verbose=True)
+        problem.solve(solver=cp.CLARABEL, verbose=True)
         
         return problem.status, x, u, gamma, z
 
@@ -141,6 +141,6 @@ class PoweredDescentGuidance:
         
         # Solve
         problem = cp.Problem(objective, constraints)
-        problem.solve(solver=cp.ECOS)
+        problem.solve(solver=cp.CLARABEL)
         
         return problem.status, x, u, gamma, z 
