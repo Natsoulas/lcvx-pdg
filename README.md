@@ -81,10 +81,6 @@ The plots will be saved in the `figs` directory and include:
 ![Time Histories](figs/time_histories.png)
 *Time histories of key variables including thrust magnitude, pointing angle, speed, and mass*
 
-### Basic 3D Trajectory
-![3D Trajectory](figs/trajectory3d.png)
-*Basic 3D trajectory visualization colored by thrust magnitude*
-
 ### Monte-Carlo Robustness Analysis
 ![Monte-Carlo Distributions](figs/monte_carlo_distributions.png)
 *Distributions of landing error, final velocity, and fuel consumption obtained from 500 randomly-dispersed simulations.  These results highlight the guidance algorithm's robustness to initial-state and parameter uncertainty.*
